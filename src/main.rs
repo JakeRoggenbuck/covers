@@ -68,9 +68,21 @@ fn walk() -> Source {
     return source;
 }
 
+fn show_test_cover(source: Source) {
+    for test in source.tests {
+        for func in &source.functions {
+            if test.contains(func) {
+                println!("{} -> {}", func, test);
+            } else {
+                println!("{} -> X", func);
+            }
+        }
+    }
+}
+
 fn main() {
     let source = walk();
-    println!("{}", source);
+    show_test_cover(source);
 }
 
 fn _function_to_test() -> i64 {
