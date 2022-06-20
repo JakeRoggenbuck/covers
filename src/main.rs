@@ -1,3 +1,4 @@
+use colored::Colorize;
 use std::fmt;
 use std::fs;
 
@@ -72,9 +73,9 @@ fn show_test_cover(source: Source) {
     for test in source.tests {
         for func in &source.functions {
             if test.contains(func) {
-                println!("{} -> {}", func, test);
+                println!("{} -> {}", func, test.green());
             } else {
-                println!("{} -> X", func);
+                println!("{} -> {}", func, "X".to_string().red());
             }
         }
     }
