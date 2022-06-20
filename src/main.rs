@@ -70,6 +70,9 @@ fn walk() -> Source {
 }
 
 fn show_test_cover(source: Source) {
+    let tests_count = source.tests.len();
+    let funcs_count = source.functions.len();
+
     for test in source.tests {
         for func in &source.functions {
             if test.contains(func) {
@@ -79,6 +82,8 @@ fn show_test_cover(source: Source) {
             }
         }
     }
+    let percent: f64 = (tests_count as f64 / funcs_count as f64) as f64;
+    println!("Covers {:.4}% - {}/{}", percent, tests_count, funcs_count);
 }
 
 fn main() {
