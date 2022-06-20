@@ -94,7 +94,6 @@ fn show_test_cover(source: Source) {
     for (i, func) in source.functions.iter().enumerate() {
         if !found.contains(&i) {
             println!("{} -> {}", func, "X".red());
-            found.push(i);
         }
     }
 
