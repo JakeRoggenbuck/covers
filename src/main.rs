@@ -129,7 +129,7 @@ mod tests {
         env::set_current_dir(Path::new("./src/")).unwrap();
 
         let source = walk();
-        assert_eq!(source.functions.len(), 10);
+        assert_eq!(source.functions.len(), 8);
     }
 
     #[test]
