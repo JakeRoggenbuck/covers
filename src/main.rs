@@ -98,9 +98,45 @@ fn _function_to_test() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
+    use std::path::Path;
 
     #[test]
     fn _function_to_test_test() {
         assert!(_function_to_test() == 0);
+    }
+
+    #[test]
+    fn walk_test() {
+        let source = walk();
+        assert_eq!(source.functions.len(), 0);
+
+        env::set_current_dir(Path::new("./src/")).unwrap();
+
+        let source = walk();
+        assert_eq!(source.functions.len(), 10);
+    }
+
+    #[test]
+    fn isolate_functions_and_tests_test() {
+        const TEST_CODE: &str = "\
+        fn this_is_some_code() { return 0; }
+        \
+        #[test]
+        fn this_is_some_code_test() {
+            assert!(this_is_some_code() == 0);
+        }";
+
+        let mut source = Source {
+            functions: Vec::<String>::new(),
+            tests: Vec::<String>::new(),
+        };
+
+        isolate_functions_and_tests(&TEST_CODE.to_string(), &mut source);
+        assert_eq!(source.functions.len(), 1);
+        assert_eq!(source.tests.len(), 1);
+
+        assert_eq!(source.functions, vec!["fn this_is_some_code"]);
+        assert_eq!(source.tests, vec!["fn this_is_some_code_test"]);
     }
 }
