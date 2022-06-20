@@ -30,9 +30,16 @@ fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source) {
         // But it also contains "exactly this" so it won't be caught
         // by the search for functions
         if line.contains("fn ") && line.contains("(") && !line.contains("exactly this") {
+            // Remove things after '('
             line = line.trim_start();
             let parts: Vec<&str> = line.split("(").collect();
             line = parts[0];
+
+            // Check that line starts with fn
+            let start = &line[0..2];
+            if start != "fn" {
+                continue;
+            }
 
             if prev_line.contains("#[test]") {
                 source_ref.tests.push(line.to_string());
@@ -73,15 +80,24 @@ fn show_test_cover(source: Source) {
     let tests_count = source.tests.len();
     let funcs_count = source.functions.len();
 
+    let mut found = Vec::<usize>::new();
+
     for test in source.tests {
-        for func in &source.functions {
+        for (i, func) in source.functions.iter().enumerate() {
             if test.contains(func) {
                 println!("{} -> {}", func, test.green());
-            } else {
-                println!("{} -> {}", func, "X".to_string().red());
+                found.push(i);
             }
         }
     }
+
+    for (i, func) in source.functions.iter().enumerate() {
+        if !found.contains(&i) {
+            println!("{} -> {}", func, "X".red());
+            found.push(i);
+        }
+    }
+
     let percent: f64 = (tests_count as f64 / funcs_count as f64) as f64;
     println!("Covers {:.4}% - {}/{}", percent, tests_count, funcs_count);
 }
