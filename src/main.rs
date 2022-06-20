@@ -23,37 +23,44 @@ impl fmt::Display for Source {
     }
 }
 
-fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source) {
+fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, only_with_returns: bool) {
     let mut prev_line: &str = "";
-    for mut line in contents.split("\n") {
+    for line in contents.split("\n") {
         // The next line of code checks for fn, but also contains fn
         // But it also contains "exactly this" so it won't be caught
         // by the search for functions
         if line.contains("fn ") && line.contains("(") && !line.contains("exactly this") {
             // Remove things after '('
-            line = line.trim_start();
-            let parts: Vec<&str> = line.split("(").collect();
-            line = parts[0];
+            let mut new_line = line.trim_start();
+            let parts: Vec<&str> = new_line.split("(").collect();
+            new_line = parts[0];
 
             // Check that line starts with fn
-            let start = &line[0..2];
+            let start = &new_line[0..2];
             if start != "fn" {
                 continue;
             }
 
             if prev_line.contains("#[test]") {
-                source_ref.tests.push(line.to_string());
+                source_ref.tests.push(new_line.to_string());
             } else {
-                source_ref.functions.push(line.to_string());
+                // wait for -> check as to not skip tests
+                // skip if there is no return type
+                if only_with_returns {
+                    if !line.contains("->") {
+                        continue;
+                    }
+                }
+                source_ref.functions.push(new_line.to_string());
             }
         }
         prev_line = line;
     }
 }
 
-fn read_tests_and_functions(path: &str, source_ref: &mut Source) {
+fn read_tests_and_functions(path: &str, source_ref: &mut Source, only_with_returns: bool) {
     let contents = fs::read_to_string(path).expect("Could not open file");
-    isolate_functions_and_tests(&contents, source_ref);
+    isolate_functions_and_tests(&contents, source_ref, only_with_returns);
 }
 
 fn walk() -> Source {
@@ -69,7 +76,7 @@ fn walk() -> Source {
         let path_name = new_path.to_string_lossy();
 
         if path_name.contains(".rs") {
-            read_tests_and_functions(&path_name, &mut source);
+            read_tests_and_functions(&path_name, &mut source, true);
         }
     }
 
@@ -147,7 +154,7 @@ mod tests {
             tests: Vec::<String>::new(),
         };
 
-        isolate_functions_and_tests(&TEST_CODE.to_string(), &mut source);
+        isolate_functions_and_tests(&TEST_CODE.to_string(), &mut source, false);
         assert_eq!(source.functions.len(), 1);
         assert_eq!(source.tests.len(), 1);
 
