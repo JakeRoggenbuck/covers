@@ -1,6 +1,7 @@
 use colored::Colorize;
 use std::fmt;
 use std::fs;
+use structopt::StructOpt;
 
 struct Source {
     functions: Vec<String>,
@@ -8,6 +9,13 @@ struct Source {
 }
 
 struct Settings {
+    only_with_returns: bool,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "example", about = "An example of StructOpt usage.")]
+struct Opt {
+    #[structopt(short, long)]
     only_with_returns: bool,
 }
 
@@ -27,7 +35,7 @@ impl fmt::Display for Source {
     }
 }
 
-fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, settings: Settings) {
+fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, settings: &Settings) {
     let mut prev_line: &str = "";
     for line in contents.split("\n") {
         // The next line of code checks for fn, but also contains fn
@@ -62,12 +70,12 @@ fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, settings
     }
 }
 
-fn read_tests_and_functions(path: &str, source_ref: &mut Source, settings: Settings) {
+fn read_tests_and_functions(path: &str, source_ref: &mut Source, settings: &Settings) {
     let contents = fs::read_to_string(path).expect("Could not open file");
     isolate_functions_and_tests(&contents, source_ref, settings);
 }
 
-fn walk() -> Source {
+fn walk(settings: &Settings) -> Source {
     let mut source = Source {
         functions: Vec::<String>::new(),
         tests: Vec::<String>::new(),
@@ -80,13 +88,7 @@ fn walk() -> Source {
         let path_name = new_path.to_string_lossy();
 
         if path_name.contains(".rs") {
-            read_tests_and_functions(
-                &path_name,
-                &mut source,
-                Settings {
-                    only_with_returns: false,
-                },
-            );
+            read_tests_and_functions(&path_name, &mut source, settings);
         }
     }
 
@@ -119,7 +121,12 @@ fn show_test_cover(source: Source) {
 }
 
 fn main() {
-    let source = walk();
+    let opt = Opt::from_args();
+    let settings = Settings {
+        only_with_returns: opt.only_with_returns,
+    };
+
+    let source = walk(&settings);
     show_test_cover(source);
 }
 
@@ -140,13 +147,17 @@ mod tests {
 
     #[test]
     fn walk_test() {
-        let source = walk();
+        let settings = Settings {
+            only_with_returns: false,
+        };
+
+        let source = walk(&settings);
         assert_eq!(source.functions.len(), 0);
 
         env::set_current_dir(Path::new("./src/")).unwrap();
 
-        let source = walk();
-        assert_eq!(source.functions.len(), 10);
+        let source = walk(&settings);
+        assert_eq!(source.functions.len(), 8);
     }
 
     #[test]
@@ -164,7 +175,13 @@ mod tests {
             tests: Vec::<String>::new(),
         };
 
-        isolate_functions_and_tests(&TEST_CODE.to_string(), &mut source, Settings {only_with_returns: false} );
+        isolate_functions_and_tests(
+            &TEST_CODE.to_string(),
+            &mut source,
+            &Settings {
+                only_with_returns: false,
+            },
+        );
         assert_eq!(source.functions.len(), 1);
         assert_eq!(source.tests.len(), 1);
 
