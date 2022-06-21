@@ -127,6 +127,7 @@ fn main() {
     };
 
     let source = walk(&settings);
+    println!("{source}");
     show_test_cover(source);
 }
 
