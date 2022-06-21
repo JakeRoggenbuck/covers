@@ -7,6 +7,10 @@ struct Source {
     tests: Vec<String>,
 }
 
+struct Settings {
+    only_with_returns: bool,
+}
+
 impl fmt::Display for Source {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut out = String::from("Source:\n");
@@ -23,7 +27,7 @@ impl fmt::Display for Source {
     }
 }
 
-fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, only_with_returns: bool) {
+fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, settings: Settings) {
     let mut prev_line: &str = "";
     for line in contents.split("\n") {
         // The next line of code checks for fn, but also contains fn
@@ -46,7 +50,7 @@ fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, only_wit
             } else {
                 // wait for -> check as to not skip tests
                 // skip if there is no return type
-                if only_with_returns {
+                if settings.only_with_returns {
                     if !line.contains("->") {
                         continue;
                     }
@@ -58,9 +62,9 @@ fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, only_wit
     }
 }
 
-fn read_tests_and_functions(path: &str, source_ref: &mut Source, only_with_returns: bool) {
+fn read_tests_and_functions(path: &str, source_ref: &mut Source, settings: Settings) {
     let contents = fs::read_to_string(path).expect("Could not open file");
-    isolate_functions_and_tests(&contents, source_ref, only_with_returns);
+    isolate_functions_and_tests(&contents, source_ref, settings);
 }
 
 fn walk() -> Source {
@@ -76,7 +80,13 @@ fn walk() -> Source {
         let path_name = new_path.to_string_lossy();
 
         if path_name.contains(".rs") {
-            read_tests_and_functions(&path_name, &mut source, true);
+            read_tests_and_functions(
+                &path_name,
+                &mut source,
+                Settings {
+                    only_with_returns: false,
+                },
+            );
         }
     }
 
@@ -154,7 +164,7 @@ mod tests {
             tests: Vec::<String>::new(),
         };
 
-        isolate_functions_and_tests(&TEST_CODE.to_string(), &mut source, false);
+        isolate_functions_and_tests(&TEST_CODE.to_string(), &mut source, Settings {only_with_returns: false} );
         assert_eq!(source.functions.len(), 1);
         assert_eq!(source.tests.len(), 1);
 
