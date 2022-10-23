@@ -90,12 +90,18 @@ fn walk(settings: &Settings) -> Source {
         unwraps: 0,
     };
 
-    let paths = fs::read_dir("./").unwrap();
+    let paths = match fs::read_dir("./") {
+        Ok(a) => a,
+        Err(e) => {
+            println!("Count not read directory with error {e}");
+            std::process::exit(1);
+        }
+    };
 
     // This assumes that tests are in the same file as the definition
     // not necessarily a safe but having the two in the same file is recommended
     for path in paths {
-        let new_path = path.unwrap().path();
+        let new_path = path.expect("Each path in paths should have path").path();
         let path_name = new_path.to_string_lossy();
 
         if path_name.contains(".rs") {
@@ -137,7 +143,10 @@ fn show_test_cover(source: Source) {
 
     let percent: f64 = (tests_count as f64 / funcs_count as f64) as f64;
     println!("\n=======================================================");
-    println!("Covers:   {:.4}% - {}/{}", percent, tests_count, funcs_count);
+    println!(
+        "Covers:   {:.4}% - {}/{}",
+        percent, tests_count, funcs_count
+    );
     println!("Unwraps:  {}", source.unwraps);
     println!("\nScore:    {}", calc_final_score(source.unwraps, percent));
     println!("closer to zero is better.");
@@ -178,10 +187,11 @@ mod tests {
         let source = walk(&settings);
         assert_eq!(source.functions.len(), 0);
 
-        env::set_current_dir(Path::new("./src/")).unwrap();
+        env::set_current_dir(Path::new("./src/"))
+            .expect("Path ./src/ should exist and setting current directory should work.");
 
         let source = walk(&settings);
-        assert_eq!(source.functions.len(), 8);
+        assert_eq!(source.functions.len(), 9);
     }
 
     #[test]
@@ -214,5 +224,16 @@ mod tests {
 
         assert_eq!(source.functions, vec!["fn this_is_some_code"]);
         assert_eq!(source.tests, vec!["fn this_is_some_code_test"]);
+    }
+
+    #[test]
+    fn calc_final_score_test() {
+        assert_eq!(calc_final_score(0, 0.0), 100);
+        assert_eq!(calc_final_score(0, 1.0), 0);
+        assert_eq!(calc_final_score(0, 0.5), 50);
+
+        assert_eq!(calc_final_score(2, 0.0), 104);
+        assert_eq!(calc_final_score(4, 1.0), 16);
+        assert_eq!(calc_final_score(9, 0.5), 131);
     }
 }
