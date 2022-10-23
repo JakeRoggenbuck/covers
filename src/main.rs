@@ -6,6 +6,7 @@ use structopt::StructOpt;
 struct Source {
     functions: Vec<String>,
     tests: Vec<String>,
+    unwraps: i32,
 }
 
 struct Settings {
@@ -19,16 +20,17 @@ struct Opt {
     only_with_returns: bool,
 }
 
+/// Display all of the functions and tests
 impl fmt::Display for Source {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut out = String::from("Source:\n");
         out += "  Functions:\n";
         for func in &self.functions {
-            out += &format!("    {func},\n").to_string();
+            out += &format!("    {},\n", func.blue()).to_string();
         }
         out += "  Tests:\n";
         for test in &self.tests {
-            out += &format!("    {test},\n").to_string();
+            out += &format!("    {},\n", test.purple()).to_string();
         }
 
         write!(f, "{}", out)
@@ -36,11 +38,14 @@ impl fmt::Display for Source {
 }
 
 fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, settings: &Settings) {
+    // Count and save the number of unwraps
+    source_ref.unwraps = contents.matches(concat!("unwrap", "()")).count() as i32;
+
     let mut prev_line: &str = "";
     for line in contents.split("\n") {
         // The next line of code checks for fn, but also contains fn
         // But it also contains "exactly this" so it won't be caught
-        // by the search for functions
+        // by the search for functions when checking covers on this file
         if line.contains("fn ") && line.contains("(") && !line.contains("exactly this") {
             // Remove things after '('
             let mut new_line = line.trim_start();
@@ -71,6 +76,9 @@ fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, settings
 }
 
 fn read_tests_and_functions(path: &str, source_ref: &mut Source, settings: &Settings) {
+    // This function does two things
+    // It starts two things, one is the counting funcs and tests
+    // The other is very basic, just counting unwraps
     let contents = fs::read_to_string(path).expect("Could not open file");
     isolate_functions_and_tests(&contents, source_ref, settings);
 }
@@ -79,10 +87,13 @@ fn walk(settings: &Settings) -> Source {
     let mut source = Source {
         functions: Vec::<String>::new(),
         tests: Vec::<String>::new(),
+        unwraps: 0,
     };
 
     let paths = fs::read_dir("./").unwrap();
 
+    // This assumes that tests are in the same file as the definition
+    // not necessarily a safe but having the two in the same file is recommended
     for path in paths {
         let new_path = path.unwrap().path();
         let path_name = new_path.to_string_lossy();
@@ -93,6 +104,14 @@ fn walk(settings: &Settings) -> Source {
     }
 
     return source;
+}
+
+fn calc_final_score(unwraps: i32, cover_percent: f64) -> i32 {
+    let mut score = 0;
+    score += unwraps.pow(2);
+
+    score += (100.0 - (cover_percent * 100.0)) as i32;
+    return score;
 }
 
 fn show_test_cover(source: Source) {
@@ -117,7 +136,11 @@ fn show_test_cover(source: Source) {
     }
 
     let percent: f64 = (tests_count as f64 / funcs_count as f64) as f64;
-    println!("Covers {:.4}% - {}/{}", percent, tests_count, funcs_count);
+    println!("\n=======================================================");
+    println!("Covers:   {:.4}% - {}/{}", percent, tests_count, funcs_count);
+    println!("Unwraps:  {}", source.unwraps);
+    println!("\nScore:    {}", calc_final_score(source.unwraps, percent));
+    println!("closer to zero is better.");
 }
 
 fn main() {
@@ -164,7 +187,7 @@ mod tests {
     #[test]
     fn isolate_functions_and_tests_test() {
         const TEST_CODE: &str = "\
-        fn this_is_some_code() { return 0; }
+        fn this_is_some_code() { return 0.unwrap(); }
         \
         #[test]
         fn this_is_some_code_test() {
@@ -174,6 +197,7 @@ mod tests {
         let mut source = Source {
             functions: Vec::<String>::new(),
             tests: Vec::<String>::new(),
+            unwraps: 0,
         };
 
         isolate_functions_and_tests(
@@ -185,6 +209,8 @@ mod tests {
         );
         assert_eq!(source.functions.len(), 1);
         assert_eq!(source.tests.len(), 1);
+
+        assert_eq!(source.unwraps, 1);
 
         assert_eq!(source.functions, vec!["fn this_is_some_code"]);
         assert_eq!(source.tests, vec!["fn this_is_some_code_test"]);
