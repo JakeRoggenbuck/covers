@@ -192,6 +192,7 @@ mod tests {
     fn walk_test() {
         let settings = Settings {
             only_with_returns: false,
+            full_line: false,
         };
 
         let source = walk(&settings);
@@ -225,6 +226,7 @@ mod tests {
             &mut source,
             &Settings {
                 only_with_returns: false,
+                full_line: false,
             },
         );
         assert_eq!(source.functions.len(), 1);
