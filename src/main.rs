@@ -52,14 +52,10 @@ fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, settings
         // by the search for functions when checking covers on this file
         if line.contains("fn ") && line.contains("(") && !line.contains("exactly this") {
             let mut new_line;
-            if !settings.full_line {
-                // Remove things after '('
-                new_line = line.trim_start();
-                let parts: Vec<&str> = new_line.split("(").collect();
-                new_line = parts[0];
-            } else {
-                new_line = line;
-            }
+            // Remove things after '('
+            new_line = line.trim_start();
+            let parts: Vec<&str> = new_line.split("(").collect();
+            new_line = parts[0];
 
             // Check that line starts with fn
             let start = &new_line[0..2];
@@ -77,7 +73,11 @@ fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, settings
                         continue;
                     }
                 }
-                source_ref.functions.push(new_line.to_string());
+                if settings.full_line {
+                    source_ref.functions.push(line.to_string());
+                } else {
+                    source_ref.functions.push(new_line.to_string());
+                }
             }
         }
         prev_line = line;
