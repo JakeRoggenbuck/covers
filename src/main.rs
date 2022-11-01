@@ -11,13 +11,17 @@ struct Source {
 
 struct Settings {
     only_with_returns: bool,
+    full_line: bool,
 }
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "example", about = "An example of StructOpt usage.")]
+#[structopt(name = "Covers", about = "Check for test coverage and unwraps.")]
 struct Opt {
     #[structopt(short, long)]
     only_with_returns: bool,
+
+    #[structopt(short, long)]
+    full_line: bool,
 }
 
 /// Display all of the functions and tests
@@ -47,10 +51,15 @@ fn isolate_functions_and_tests(contents: &str, source_ref: &mut Source, settings
         // But it also contains "exactly this" so it won't be caught
         // by the search for functions when checking covers on this file
         if line.contains("fn ") && line.contains("(") && !line.contains("exactly this") {
-            // Remove things after '('
-            let mut new_line = line.trim_start();
-            let parts: Vec<&str> = new_line.split("(").collect();
-            new_line = parts[0];
+            let mut new_line;
+            if !settings.full_line {
+                // Remove things after '('
+                new_line = line.trim_start();
+                let parts: Vec<&str> = new_line.split("(").collect();
+                new_line = parts[0];
+            } else {
+                new_line = line;
+            }
 
             // Check that line starts with fn
             let start = &new_line[0..2];
@@ -156,6 +165,7 @@ fn main() {
     let opt = Opt::from_args();
     let settings = Settings {
         only_with_returns: opt.only_with_returns,
+        full_line: opt.full_line,
     };
 
     let source = walk(&settings);
